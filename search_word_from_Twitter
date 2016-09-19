@@ -31,7 +31,7 @@ oauth_consumer_secret = ''  # your consumer secret
 
 
 def main():
-    access_token = ""
+    access_token = ""  # your access token
     tweet_id = 0
     count = 0
     flag = 0
