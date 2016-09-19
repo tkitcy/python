@@ -1,0 +1,150 @@
+# -*- coding: utf-8 -*-
+
+import base64
+import urllib.request
+import urllib.parse
+import json
+import csv
+import time
+
+oauth_consumer_key = ''     # your consumer key
+oauth_consumer_secret = ''  # your consumer secret
+
+
+##def authenticate():
+##    url = 'https://api.twitter.com/oauth2/token'
+##    
+##    token_credential = oauth_consumer_key + ':' + oauth_consumer_secret
+##    credential = 'Basic ' + base64.b64encode(token_credential)
+##
+##    value = {'grant_type': 'client_credentials'}
+##    data = urllib.urlencode(value)
+##    
+##    req = urllib.Request(url)
+##    req.add_header('Authorization', credential)
+##    req.add_header('Content-Type', 'application/x-www-form-urlencoded;charset=UTF-8')
+##
+##    response = urllib.urlopen(req, data)
+##    json_response = json.loads(response.read())
+##    access_token = json_response['access_token']
+##    return access_token
+
+
+def main():
+    access_token = ""
+    tweet_id = 0
+    count = 0
+    flag = 0
+    list = []
+    
+    for line in open("filename.txt","r", encoding="utf-8"):
+        concept = line.replace('\n', '')
+        #concept = line.replace('\\ufeff', '')
+        filename = concept + ".txt"
+        f = open(filename, "w", encoding="utf-8")
+        writer = csv.writer(f)
+        search_word = '"' + concept + '"' + " -@ -RT"
+        
+        del list[:]
+        
+        for i in range(10):
+            tweets = search(access_token, search_word, i, tweet_id)
+            
+            for tweet in tweets["statuses"]:
+                tweet_id = tweet[u'id_str']
+                text = tweet[u'text']
+                created_at = tweet[u'created_at']
+                user_id = tweet[u'user'][u'id_str']
+                user_description = tweet[u'user'][u'description']
+                screen_name = tweet[u'user'][u'screen_name']
+                user_name = tweet[u'user'][u'name']
+            
+                for id in list:
+                    if id == user_id:
+                        flag = 1
+                        break
+                if text[0] == 'R' and text[1] =='T':
+                    flag = 1
+                    
+                if flag == 0:
+                    list.append(user_id)
+                    writer.writerow(["-prod-"])
+                    writer.writerow([text])
+                    writer.writerow(['\n'])
+
+                flag = 0
+        f.close()
+        count += 1
+        print (count)
+        #nyuryoku = input()
+        #print (search_word)
+    return
+        
+def search(access_token, search_word, i, tweet_id):
+    past = 450
+    stock = 0
+    remain = 0
+    wait = 0
+    flag = 0
+    url = 'https://api.twitter.com/1.1/search/tweets.json'
+
+    if i == 0:
+        query = {
+            "q": search_word,
+            "lang": "ja",
+            "result_type": "recent",
+            "count": "100"
+            }
+    else:
+        query = {
+            "q": search_word,
+            "lang": "ja",
+            "result_type": "recent",
+            "count": "100",
+            "max_id" : int(tweet_id) - 1
+            }
+    while 1:
+
+        req = urllib.request.Request(url+'?'+urllib.parse.urlencode(query))
+        req.add_header('Authorization', 'Bearer ' + access_token)
+        while 1:
+            try:
+                response = urllib.request.urlopen(req)
+                break
+            except:
+                if flag == 0:
+                    print ("http error 503")
+                    flag = 1
+                continue
+        flag = 0
+                
+        try:
+            remain = int (response.headers["X-Rate-Limit-Remaining"])
+            past = remain
+        except:
+            remain =past-1
+        
+    ##    print (count)
+    ##    print (float(response.headers['X-Rate-Limit-Reset']) - int(time.time()) + 10)
+        
+        if remain == 0:
+            print("No remaining!")
+            time.sleep(float(response.headers['X-Rate-Limit-Reset']) - int(time.time()) + 5)
+            
+        try:
+            json_response = json.loads(response.read().decode("utf-8"))
+            break
+        except:
+            wait += 1
+            print (wait)
+            print("waiting!!")
+            time.sleep(1)
+            continue
+        
+    print ("complete")
+    return json_response
+  
+
+if __name__ == '__main__':
+    main()
+
